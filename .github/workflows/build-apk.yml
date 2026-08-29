@@ -27,16 +27,16 @@ jobs:
 
       - name: Unzip Project Files
         run: |
-          unzip -q ResultTime-Android-App-Project.zip -d ./
-          ls -la android-app
+          unzip -q ResultTime-Android-App-Project-fixed.zip -d ./
+          ls -la ResultTime-Android-App-Project-fixed/android-app
 
       - name: Build APK with System Gradle
         run: |
-          cd android-app
+          cd ResultTime-Android-App-Project-fixed/android-app
           gradle assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ResultTime-App-Debug
-          path: android-app/app/build/outputs/apk/debug/*.apk
+          path: ResultTime-Android-App-Project-fixed/android-app/app/build/outputs/apk/debug/*.apk
