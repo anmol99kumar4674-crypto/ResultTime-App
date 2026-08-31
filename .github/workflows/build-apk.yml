@@ -27,8 +27,8 @@ jobs:
 
       - name: Unzip Project Files
         run: |
-          unzip -q ResultTime-Android-App-Project-fullscreen-fixed.zip -d ./
-          ls -la ResultTime-Android-App-Project-fullscreen-fixed/android-app
+          unzip -q ResultTime-Android-App-Project-fixed.zip -d ./
+          ls -la ResultTime-Android-App-Project-fixed/android-app
 
       - name: Build APK with System Gradle
         run: |
