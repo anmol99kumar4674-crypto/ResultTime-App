@@ -1,4 +1,4 @@
-name: Build Android APK from ZIP
+name: Build Thanos Android APK
 
 on:
   push:
@@ -22,21 +22,43 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Unzip Project Files
+      - name: Locate Android project
+        shell: bash
         run: |
-          unzip -q Thanos-Android-App-Project.zip -d ./
-          ls -la ResultTime-Android-App-Project-fixed/android-app
+          set -e
+          if [ -f "settings.gradle" ] && [ -f "app/build.gradle" ]; then
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          elif [ -f "Thanos-Android-App-Project.zip" ]; then
+            mkdir -p extracted
+            unzip -q Thanos-Android-App-Project.zip -d extracted
+            PROJECT_DIR=$(find extracted -type f -name settings.gradle -print -quit | xargs -r dirname)
+            if [ -z "$PROJECT_DIR" ]; then
+              echo "Could not find settings.gradle in the ZIP." >&2
+              find extracted -maxdepth 4 -type f | head -100
+              exit 1
+            fi
+            echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          else
+            PROJECT_DIR=$(find . -type f -name settings.gradle -not -path './.gradle/*' -print -quit | xargs -r dirname)
+            if [ -z "$PROJECT_DIR" ]; then
+              echo "Android project not found. Put the project files in the repository root or upload Thanos-Android-App-Project.zip." >&2
+              exit 1
+            fi
+            echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          fi
 
-      - name: Build APK with System Gradle
+      - name: Build Debug APK
+        shell: bash
         run: |
-          cd ResultTime-Android-App-Project-fixed/android-app
-          gradle assembleDebug
+          set -e
+          cd "$PROJECT_DIR"
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ResultTime-App-Debug
-          path: ResultTime-Android-App-Project-fixed/android-app/app/build/outputs/apk/debug/*.apk
+          name: Thanos-Debug-APK
+          path: |
+            **/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
