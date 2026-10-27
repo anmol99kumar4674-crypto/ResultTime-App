@@ -1,4 +1,4 @@
-name: Build Android APK from ZIP
+name: Build Thanos Android APK from ZIP
 
 on:
   push:
@@ -27,16 +27,16 @@ jobs:
 
       - name: Unzip Project Files
         run: |
-          unzip -q ResultTime-Android-App-Project-fullscreen-crash-fixed.zip -d ./
-          ls -la ResultTime-Android-App-Project-fixed/android-app
+          unzip -q Thanos-Android-App-Project-fullscreen-crash-fixed.zip -d ./
+          ls -la Thanos-Android-App-Project-fixed/android-app
 
       - name: Build APK with System Gradle
         run: |
-          cd ResultTime-Android-App-Project-fixed/android-app
+          cd Thanos-Android-App-Project-fixed/android-app
           gradle assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ResultTime-App-Debug
-          path: ResultTime-Android-App-Project-fixed/android-app/app/build/outputs/apk/debug/*.apk
+          name: Thanos-App-Debug
+          path: Thanos-Android-App-Project-fixed/android-app/app/build/outputs/apk/debug/*.apk
