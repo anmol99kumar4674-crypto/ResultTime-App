@@ -5,10 +5,12 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -19,24 +21,58 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # GitHub-hosted Ubuntu runners already include Android SDK.
+      # Avoid setup-android here because its sdkmanager license step failed
+      # in the current run before the project was even located.
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Unzip Project Files
+      - name: Locate and extract Thanos Android project
+        shell: bash
         run: |
-          unzip -q Thanos-Android-App-Project-fullscreen-crash-fixed.zip -d ./
-          ls -la Thanos-Android-App-Project-fixed/android-app
+          set -euo pipefail
+          if [ -f "Thanos-Android-App-Project.zip" ]; then
+            mkdir -p _thanos_project
+            unzip -oq "Thanos-Android-App-Project.zip" -d _thanos_project
+            SEARCH_ROOT="_thanos_project"
+          elif [ -f "Thanos-Android-App-Project-fullscreen-crash-fixed.zip" ]; then
+            mkdir -p _thanos_project
+            unzip -oq "Thanos-Android-App-Project-fullscreen-crash-fixed.zip" -d _thanos_project
+            SEARCH_ROOT="_thanos_project"
+          else
+            SEARCH_ROOT="."
+          fi
 
-      - name: Build APK with System Gradle
+          SETTINGS_FILE="$(find "$SEARCH_ROOT" -type f -name settings.gradle -print -quit)"
+          if [ -z "$SETTINGS_FILE" ]; then
+            SETTINGS_FILE="$(find "$SEARCH_ROOT" -type f -name settings.gradle.kts -print -quit)"
+          fi
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "::error::Android project not found. Upload the Thanos Android project ZIP to the repository root."
+            echo "Repository files:"
+            find . -maxdepth 4 -type f | head -150
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Found Android project at: $PROJECT_DIR"
+          ls -la "$PROJECT_DIR"
+
+      - name: Build Debug APK
+        shell: bash
         run: |
-          cd Thanos-Android-App-Project-fixed/android-app
-          gradle assembleDebug
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          if [ ! -f "app/build.gradle" ] && [ ! -f "app/build.gradle.kts" ]; then
+            echo "::error::Android app module not found: expected app/build.gradle or app/build.gradle.kts"
+            exit 1
+          fi
+          gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Thanos-App-Debug
-          path: Thanos-Android-App-Project-fixed/android-app/app/build/outputs/apk/debug/*.apk
+          path: |
+            **/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
